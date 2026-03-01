@@ -61,18 +61,17 @@ fun HabitAdd(modifier: Modifier = Modifier) {
     var habits by remember { mutableStateOf(listOf<Habits>()) }
     var isDialogOpen by remember { mutableStateOf(false) }
     var habitName by remember { mutableStateOf("") }
-
-
+    var habitError by remember { mutableStateOf(false) }
+    var habitToDelete by remember { mutableStateOf<Habits?>(null) }
     Column(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.Start
     ) {
         Text("My habits")
-        if (habits.isEmpty()) {
+        val name = habitName.trim()
+        if (name.isEmpty()) {
             Text("No habits yet. Add your first one.")
-        } else {
-            Text("")
         }
         if (isDialogOpen) {
             AlertDialog(
@@ -80,18 +79,26 @@ fun HabitAdd(modifier: Modifier = Modifier) {
                 confirmButton = {
 
                     Button(onClick = {
-                        if (habitName.isNotBlank()) {
-                            val newHabit = Habits(habitName, 0)
-                            habits = habits + newHabit
-                            habitName = ""
-                            isDialogOpen = false
+                        if (habitName.isBlank()) {
+                            habitError = true
+                            return@Button
                         }
+                        val newHabit = Habits(habitName, 0)
+                        habits = habits + newHabit
+                        habitName = ""
+                        isDialogOpen = false
+
+
                     }) {
                         Text("Add")
                     }
 
                 }, dismissButton = {
-                    Button(onClick = { isDialogOpen = false }) {
+                    Button(onClick = {
+                        isDialogOpen = false
+                        habitError = false
+                        habitName = ""
+                    }) {
                         Text("Cancel")
                     }
                 },
@@ -100,20 +107,46 @@ fun HabitAdd(modifier: Modifier = Modifier) {
                     Column() {
                         TextField(
                             value = habitName,
-                            onValueChange = { habitName = it },
-                            singleLine = true
-
+                            onValueChange = {
+                                habitName = it
+                                if (habitError) habitError = false
+                            },
+                            singleLine = true,
+                            label = { Text("Habit name") },
+                            isError = habitError
                         )
-
+                        if (habitError) {
+                            Text("Enter name of habit", color = Color.Red)
+                        }
                     }
                 }
             )
+        }
+        if (habitToDelete != null) {
+            AlertDialog(
+                onDismissRequest = { habitToDelete = null },
+                title = { Text("Do you want delete it") },
+                text = { Text("Are you sure you want to delete\"${habitToDelete!!.habitName}\"?") },
+                confirmButton = {
+                    Button(onClick = {
+                        habits = habits - habitToDelete!!
+                        habitToDelete = null
 
+                    }) {
+                        Text("Yes")
+                    }
+                },
+                dismissButton = {
+                    Button(onClick = {
+                        habitToDelete = null
+                    }) { Text("No") }
+                }
+            )
         }
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(Modifier.fillMaxSize()) {
                 items(habits) { habit ->
-                    cardShowing(
+                    CardShowing(
                         item = habit,
                         onConfirmClick = {
                             habits = habits.map {
@@ -122,11 +155,12 @@ fun HabitAdd(modifier: Modifier = Modifier) {
                             }
                         },
                         onDeleteClick = {
-                            habits = habits.filter { it != habit }
+                            habitToDelete = habit
                         }
                     )
                 }
             }
+
             Button(
                 onClick = { isDialogOpen = true },
                 shape = AbsoluteRoundedCornerShape(8.dp),
@@ -136,33 +170,41 @@ fun HabitAdd(modifier: Modifier = Modifier) {
                 Text("+")
             }
         }
+
     }
-}
-
-
-    data class Habits(var habitName: String, var numberIterations: Int){
 
 }
+
+data class Habits(var habitName: String, var numberIterations: Int){
+
+}
+
 @Composable
-fun cardShowing(
+fun CardShowing(
     item: Habits,
     onConfirmClick:() -> Unit,
     onDeleteClick:() -> Unit
-){
-
-   Row(Modifier.padding(8.dp).fillMaxWidth().border(
-       border = BorderStroke(2.dp, Color(0XFF018786)),
+    ){
+    val borderColor : Color =
+    if(item.numberIterations >=10){
+        Color(0xFFD63686)
+    } else  Color(0xFF018786)
+    Row(Modifier.padding(8.dp)
+        .fillMaxWidth()
+        .border(
+       border = BorderStroke(2.dp, borderColor),
            shape= RoundedCornerShape(20)
-       ),
-   )
-        {
-       Text("${item.habitName} ")
-       Text("${item.numberIterations} ")
+       ), horizontalArrangement =  Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+   ) {
+       Text("${item.habitName} ", Modifier.padding(8.dp))
+       Text("${item.numberIterations} ", Modifier.padding(8.dp))
             Row(Modifier.padding(8.dp)) {
-                IconButton(onClick = onConfirmClick) {
+
+                IconButton(onClick = onConfirmClick, Modifier.padding(8.dp)) {
                     Icon(imageVector = Icons.Default.Done, contentDescription = " ")
                 }
-                IconButton(onClick =  onDeleteClick) {
+                IconButton(onClick = onDeleteClick, Modifier.padding(8.dp)) {
                  Icon(imageVector = Icons.Default.Delete, contentDescription = " ")
                 }
             }
